@@ -1,0 +1,79 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/5/CPU.hdl
+/**
+ * The Hack Central Processing unit (CPU).
+ * Parses the binary code in the instruction input and executes it according to the
+ * Hack machine language specification. In the case of a C-instruction, computes the
+ * function specified by the instruction. If the instruction specifies to read a memory
+ * value, the inM input is expected to contain this value. If the instruction specifies
+ * to write a value to the memory, sets the outM output to this value, sets the addressM
+ * output to the target address, and asserts the writeM output (when writeM = 0, any
+ * value may appear in outM).
+ * If the reset input is 0, computes the address of the next instruction and sets the
+ * pc output to that value. If the reset input is 1, sets pc to 0.
+ * Note: The outM and writeM outputs are combinational: they are affected by the
+ * instruction's execution during the current cycle. The addressM and pc outputs are
+ * clocked: although they are affected by the instruction's execution, they commit to
+ * their new values only in the next cycle.
+ */
+CHIP CPU {
+
+    IN  inM[16],         // M value input  (M = contents of RAM[A])
+        instruction[16], // Instruction for execution
+        reset;           // Signals whether to re-start the current
+                         // program (reset==1) or continue executing
+                         // the current program (reset==0).
+
+    OUT outM[16],        // M value output
+        writeM,          // Write to M? 
+        addressM[15],    // Address in data memory (of M)
+        pc[15];          // address of next instruction
+
+    PARTS:
+    // C-instruction or A-instruction, 15th bit is A/C (the 1-bit opcode)
+    Mux16(a[15]=false, a[0..14]=instruction[0..14], b=outALU, sel=instruction[15], out=toARegister);
+    
+    // loadA if it's an A instruction OR A is one of the dest registers
+    Not(in=instruction[15], out=isAInstruction);
+    Or(a=isAInstruction, b=instruction[5], out=loadA); // 5th bit is 1 if A register is in dest
+    ARegister(in=toARegister, load=loadA, out=outA, out[0..14]=addressM);
+    
+    // load D if it's a C instruction AND D is one of the dest register
+    And(a=instruction[15], b=instruction[4], out=loadD);
+    DRegister(in=outALU, load=loadD, out=Dout);
+
+    // 12th bit specify wheter to use A register or memory for the computation
+    Mux16(a=outA, b=inM, sel=instruction[12], out=Muxout);
+    
+    // writeM if it's an A instruction AND Memory is on of the dest
+    And(a=instruction[3], b=instruction[15], out=writeM);
+    ALU(x=Dout, y=Muxout, zx=instruction[11], nx=instruction[10], zy=instruction[9], ny=instruction[8], f=instruction[7], no=instruction[6], out=outALU, out=outM, zr=zrALU, ng=ngALU);
+
+    /* JUMP DECISION PART */
+    // bit0 is for >0 comparison, bit1 is for =0 comparison, bit2 is for <0 comparison
+    // e.g. if LSBs are 000, no jump; if 010 jump if out=0; if 111 jump whatever output is
+
+    // from the ALU we get ng and zr, negative and zero flags
+    // using the flags we can decide the jump
+    And(a=ngALU, b=instruction[2], out=negative); // if <0
+    And(a=zrALU, b=instruction[1], out=zero); // if =0
+    
+    // For the positive check, it's not sufficient to check for negation of negative, because it has also to be non-0
+    Not(in=ngALU, out=posALU); // non-negative => positive
+    Not(in=zrALU, out=notzrALU); // non-zero
+    And(a=posALU, b=instruction[0], out=pos); // if >0
+    And(a=pos, b=notzrALU, out=positive); // if >0 and non-0
+
+    // if one of the condition holds the jump CAN happen
+    Or(a=negative, b=zero, out=w1);
+    Or(a=w1, b=positive, out=jumpbutcheck);
+    // Check if it's a C-instruction (otherwise cannot jump)
+    And(a=instruction[15], b=jumpbutcheck, out=jump);
+    Not(in=jump, out=notJump);
+
+    // Update the PC, if reset do reset, if jump go to ROM[A], otherwise increment
+    PC(in=outA, load=jump, inc=notJump, reset=reset, out[0..14]=pc);
+
+}
