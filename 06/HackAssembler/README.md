@@ -1,5 +1,7 @@
 # HackAssembler
 
+![Java CI with Maven](assets/diagram.svg)
+
 A simple assembler for the Hack assembly language, written in Java.
 
 ## What is the Hack assembly language?

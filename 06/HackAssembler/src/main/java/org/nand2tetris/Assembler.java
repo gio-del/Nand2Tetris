@@ -3,12 +3,12 @@ package org.nand2tetris;
 public class Assembler extends InstructionParser {
     private final AssemblyParser parser;
     private final SymbolTable symbolTable;
-    private final MachineCodeWrite writer;
+    private final MachineCodeWriter writer;
 
     public Assembler(String pathToAssemblyFile, String pathToOutputFile) {
         this.symbolTable = new SymbolTable();
         this.parser = new AssemblyParser(pathToAssemblyFile);
-        this.writer = new MachineCodeWrite(pathToOutputFile);
+        this.writer = new MachineCodeWriter(pathToOutputFile);
     }
 
     public void assemble() {

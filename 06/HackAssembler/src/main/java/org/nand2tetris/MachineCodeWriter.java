@@ -4,11 +4,11 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 
-public class MachineCodeWrite {
+public class MachineCodeWriter {
 
     private PrintWriter printWriter;
 
-    public MachineCodeWrite(String pathToOutputFile) {
+    public MachineCodeWriter(String pathToOutputFile) {
         // create a new file at the path specified
         // if the file already exists, overwrite it
         // if the file does not exist, create a new file
